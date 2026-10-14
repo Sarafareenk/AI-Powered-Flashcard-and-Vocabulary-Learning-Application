@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexiLearn — AI-Powered Vocabulary Learning</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' },
+            surface: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1' },
+            success: '#10b981',
+            warning: '#f59e0b',
+            danger: '#ef4444',
+          },
+          fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+          boxShadow: {
+            card: '0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07)',
+            modal: '0 20px 60px -10px rgb(0 0 0 / 0.2)',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .flip-card { perspective: 1000px; }
+    .flip-inner { transition: transform 0.55s cubic-bezier(.4,0,.2,1); transform-style: preserve-3d; }
+    .flip-inner.flipped { transform: rotateY(180deg); }
+    .flip-front, .flip-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+    .flip-back { transform: rotateY(180deg); }
+    .sidebar-link { transition: background 0.15s, color 0.15s; }
+    .sidebar-link:hover { background: #e0e7ff; color: #4338ca; }
+    .sidebar-link.active { background: #e0e7ff; color: #4338ca; font-weight: 600; }
+    .progress-bar { transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+    .card-hover { transition: box-shadow 0.2s, transform 0.2s; }
+    .card-hover:hover { box-shadow: 0 8px 25px -5px rgb(99 102 241 / 0.15); transform: translateY(-1px); }
+    .btn-primary { transition: background 0.15s, box-shadow 0.15s; }
+    .btn-primary:hover { background: #4338ca; }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    :focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+    .tag { display:inline-flex; align-items:center; padding: 2px 10px; border-radius: 9999px; font-size:0.72rem; font-weight:500; }
+    @media(max-width:768px){ #sidebar{ display:none; } #sidebar.open{ display:flex; position:fixed; z-index:50; } }
+  </style>
+</head>
+<body class="bg-surface-50 text-slate-800 min-h-screen">
+
+<div id="root"></div>
+
+<!-- React + Babel via CDN -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-type="module">
+// ============================================================
+// VOCABULARY DATA
+// ============================================================
+const vocabularyData = [
+  { id:1, word:"Ameliorate", phonetic:"/əˈmiːliəreɪt/", partOfSpeech:"verb", definition:"To make something bad or unsatisfactory better; to improve a bad situation.", example:"The government introduced new policies to ameliorate the living conditions in rural areas.", synonyms:["improve","alleviate","enhance","better"], category:"Academic", difficulty:"Hard", tip:"Think of 'melio' from Latin meaning 'better' — to ameliorate is to make things better." },
+  { id:2, word:"Ephemeral", phonetic:"/ɪˈfem(ə)r(ə)l/", partOfSpeech:"adjective", definition:"Lasting for a very short time; transitory.", example:"Social media trends are often ephemeral, vanishing from public consciousness within days.", synonyms:["fleeting","transient","momentary","brief"], category:"Academic", difficulty:"Medium", tip:"Mayflies (order Ephemeroptera) live only a day — their name gives us 'ephemeral'." },
+  { id:3, word:"Pragmatic", phonetic:"/præɡˈmætɪk/", partOfSpeech:"adjective", definition:"Dealing with things sensibly and realistically, based on practical rather than idealistic considerations.", example:"She took a pragmatic approach to problem-solving, focusing on what was achievable rather than ideal.", synonyms:["practical","realistic","sensible","rational"], category:"Academic", difficulty:"Medium", tip:"A pragmatic person is a 'doer' — they focus on what works in practice." },
+  { id:4, word:"Ubiquitous", phonetic:"/juːˈbɪkwɪtəs/", partOfSpeech:"adjective", definition:"Present, appearing, or found everywhere.", example:"Smartphones have become so ubiquitous that it is rare to find someone without one.", synonyms:["omnipresent","pervasive","universal","widespread"], category:"Academic", difficulty:"Hard", tip:"Ubiquitous shares roots with 'ubiquity' — the state of being everywhere at once." },
+  { id:5, word:"Articulate", phonetic:"/ɑːˈtɪkjʊlət/", partOfSpeech:"adjective / verb", definition:"Having or showing the ability to speak fluently and coherently; to express an idea clearly.", example:"The professor was highly articulate, explaining complex theories in clear, understandable language.", synonyms:["eloquent","fluent","expressive","coherent"], category:"Communication", difficulty:"Easy", tip:"Articulate relates to 'article' — putting words together with clear joints, like a skeleton." },
+  { id:6, word:"Tenacious", phonetic:"/tɪˈneɪʃəs/", partOfSpeech:"adjective", definition:"Tending to keep a firm hold of something; persistent and determined.", example:"Her tenacious pursuit of excellence helped her overcome every obstacle in her academic career.", synonyms:["persistent","determined","resolute","steadfast"], category:"Character", difficulty:"Medium", tip:"Tenacious comes from Latin 'tenax' meaning 'holding fast' — like a dog that won't let go." },
+  { id:7, word:"Eloquent", phonetic:"/ˈeləkwənt/", partOfSpeech:"adjective", definition:"Fluent or persuasive in speaking or writing; clearly expressing or indicating something.", example:"The lawyer delivered an eloquent argument that persuaded the entire jury.", synonyms:["articulate","persuasive","expressive","fluent"], category:"Communication", difficulty:"Easy", tip:"Eloquent comes from Latin 'eloqui' meaning 'to speak out' — the word itself sounds flowing!" },
+  { id:8, word:"Ambiguous", phonetic:"/æmˈbɪɡjuəs/", partOfSpeech:"adjective", definition:"Open to more than one interpretation; not having one obvious meaning.", example:"The contract contained ambiguous terms that led to a lengthy legal dispute.", synonyms:["unclear","vague","equivocal","indeterminate"], category:"Academic", difficulty:"Medium", tip:"Ambiguous means going in two directions — 'ambi' means both, like ambidextrous." },
+  { id:9, word:"Innovate", phonetic:"/ˈɪnəveɪt/", partOfSpeech:"verb", definition:"To introduce new methods, ideas, or products; to make changes in something established.", example:"Technology companies must constantly innovate to stay ahead of the competition.", synonyms:["create","pioneer","invent","modernise"], category:"Technology", difficulty:"Easy", tip:"Innovate comes from Latin 'novus' meaning 'new' — the same root as 'novel'." },
+  { id:10, word:"Intrinsic", phonetic:"/ɪnˈtrɪnsɪk/", partOfSpeech:"adjective", definition:"Belonging naturally; essential; inherent in the very nature of something.", example:"Students who find intrinsic motivation in learning tend to achieve better long-term results.", synonyms:["inherent","innate","fundamental","essential"], category:"Academic", difficulty:"Hard", tip:"Intrinsic means coming from within — the opposite of extrinsic, which comes from outside." },
+  { id:11, word:"Resilient", phonetic:"/rɪˈzɪliənt/", partOfSpeech:"adjective", definition:"Able to withstand or recover quickly from difficult conditions.", example:"After failing her first exam, she proved resilient by studying harder and passing with distinction.", synonyms:["tough","adaptable","strong","hardy"], category:"Character", difficulty:"Easy", tip:"Resilient comes from 'resilire' meaning to spring back — like a spring returning to shape." },
+  { id:12, word:"Verbose", phonetic:"/vɜːˈbəʊs/", partOfSpeech:"adjective", definition:"Using more words than necessary; long-winded.", example:"His verbose essay could have been cut in half without losing any important information.", synonyms:["wordy","long-winded","prolix","rambling"], category:"Communication", difficulty:"Medium", tip:"Verbose shares its root with 'verbal' — too many verbs and words!" },
+  { id:13, word:"Empirical", phonetic:"/ɪmˈpɪrɪk(ə)l/", partOfSpeech:"adjective", definition:"Based on observation or experience rather than theory or logic.", example:"The scientist presented empirical evidence gathered from thousands of controlled experiments.", synonyms:["observed","experimental","practical","data-based"], category:"Science", difficulty:"Hard", tip:"Empirical data comes from real-world experiments — think of an 'empire' of facts." },
+  { id:14, word:"Hypothetical", phonetic:"/ˌhaɪpəˈθetɪk(ə)l/", partOfSpeech:"adjective", definition:"Supposed or assumed; based on a hypothesis rather than fact or reality.", example:"The professor posed a hypothetical scenario to test the students' critical thinking.", synonyms:["theoretical","speculative","supposed","assumed"], category:"Science", difficulty:"Medium", tip:"Hypothesis + -ical: a hypothetical situation is still just a hypothesis — not yet proven." },
+  { id:15, word:"Diligent", phonetic:"/ˈdɪlɪdʒ(ə)nt/", partOfSpeech:"adjective", definition:"Having or showing care and conscientiousness in one's work or duties.", example:"Only the most diligent students completed every reading assignment throughout the semester.", synonyms:["hardworking","conscientious","industrious","assiduous"], category:"Character", difficulty:"Easy", tip:"A diligent person is one who 'loves to choose' quality work — from Latin 'diligere'." },
+  { id:16, word:"Paradigm", phonetic:"/ˈpærədaɪm/", partOfSpeech:"noun", definition:"A typical example or pattern of something; a model or framework for understanding.", example:"The internet represented a paradigm shift in how humans communicate and share information.", synonyms:["model","framework","pattern","archetype"], category:"Academic", difficulty:"Hard", tip:"In science, a paradigm is the accepted model until new evidence forces a shift — like Copernicus." },
+  { id:17, word:"Concise", phonetic:"/kənˈsaɪs/", partOfSpeech:"adjective", definition:"Giving a lot of information clearly and in a few words; brief but comprehensive.", example:"A good academic abstract must be concise yet capture the full scope of the research.", synonyms:["brief","succinct","terse","compact"], category:"Communication", difficulty:"Easy", tip:"Concise is the opposite of verbose — say more with fewer words." },
+  { id:18, word:"Cognitive", phonetic:"/ˈkɒɡnɪtɪv/", partOfSpeech:"adjective", definition:"Relating to conscious mental activities such as thinking, understanding, learning, and remembering.", example:"Regular reading has been shown to enhance cognitive function and vocabulary acquisition.", synonyms:["mental","intellectual","cerebral","psychological"], category:"Science", difficulty:"Medium", tip:"Cognitive relates to cognition — how our minds process and store knowledge." },
+  { id:19, word:"Scrutinise", phonetic:"/ˈskruːtɪnaɪz/", partOfSpeech:"verb", definition:"To examine or inspect closely and thoroughly.", example:"The committee will scrutinise each proposal before awarding the research grant.", synonyms:["examine","inspect","analyse","investigate"], category:"Academic", difficulty:"Medium", tip:"To scrutinise is to sift through carefully — from Latin 'scrutinium', a careful search." },
+  { id:20, word:"Altruistic", phonetic:"/ˌæltruˈɪstɪk/", partOfSpeech:"adjective", definition:"Showing a selfless concern for the well-being of others.", example:"Her altruistic decision to donate her scholarship award helped three other students continue their studies.", synonyms:["selfless","philanthropic","generous","compassionate"], category:"Character", difficulty:"Hard", tip:"Altruistic is from French 'autrui' meaning 'other people' — putting others before yourself." },
+  { id:21, word:"Synchronise", phonetic:"/ˈsɪŋkrənaɪz/", partOfSpeech:"verb", definition:"To cause to occur or operate at the same time or rate.", example:"The development teams had to synchronise their schedules to ensure a smooth product launch.", synonyms:["coordinate","align","harmonise","calibrate"], category:"Technology", difficulty:"Easy", tip:"Synchronise has 'chrono' from Greek for time — putting things in the same time frame." },
+  { id:22, word:"Mitigate", phonetic:"/ˈmɪtɪɡeɪt/", partOfSpeech:"verb", definition:"To make less severe, serious, or painful; to lessen or moderate.", example:"Wearing sunscreen can mitigate the harmful effects of prolonged UV exposure.", synonyms:["reduce","lessen","alleviate","diminish"], category:"Academic", difficulty:"Hard", tip:"Mitigate is softer than eliminate — you mitigate a problem when you can't remove it entirely." },
+  { id:23, word:"Nuanced", phonetic:"/ˈnjuːɑːnst/", partOfSpeech:"adjective", definition:"Characterised by subtle distinctions or fine shades of meaning or expression.", example:"Her nuanced analysis of the poem revealed layers of meaning that most readers overlook.", synonyms:["subtle","refined","delicate","sophisticated"], category:"Academic", difficulty:"Medium", tip:"A nuance is a shade of meaning — nuanced writing catches all the shades between black and white." },
+  { id:24, word:"Algorithm", phonetic:"/ˈælɡərɪð(ə)m/", partOfSpeech:"noun", definition:"A process or set of rules to be followed in calculations or problem-solving operations.", example:"Search engines rely on complex algorithms to rank web pages by relevance.", synonyms:["procedure","method","process","formula"], category:"Technology", difficulty:"Medium", tip:"Algorithm is named after 9th-century mathematician Al-Khwarizmi — maths has a history!" },
+  { id:25, word:"Synthesise", phonetic:"/ˈsɪnθəsaɪz/", partOfSpeech:"verb", definition:"To combine elements into a coherent whole; to make by combining different elements.", example:"A good literature review should synthesise findings from multiple studies into a unified argument.", synonyms:["combine","integrate","merge","blend"], category:"Academic", difficulty:"Hard", tip:"Synthesis is the opposite of analysis — analysis breaks apart, synthesis brings together." },
+  { id:26, word:"Iterate", phonetic:"/ˈɪtəreɪt/", partOfSpeech:"verb", definition:"To perform or utter repeatedly; in development, to work through successive versions.", example:"The design team would iterate on the prototype until users found it intuitive.", synonyms:["repeat","cycle","refine","rework"], category:"Technology", difficulty:"Medium", tip:"In software, each iteration is a loop that improves the result — you iterate to perfection." },
+  { id:27, word:"Meticulous", phonetic:"/mɪˈtɪkjʊləs/", partOfSpeech:"adjective", definition:"Showing great attention to detail or being very careful and precise.", example:"The forensic scientist was meticulous in documenting every piece of evidence at the crime scene.", synonyms:["careful","precise","thorough","scrupulous"], category:"Character", difficulty:"Medium", tip:"Meticulous comes from Latin 'metus' (fear) — originally meaning overly fearful of mistakes." },
+  { id:28, word:"Analogy", phonetic:"/əˈnælədʒi/", partOfSpeech:"noun", definition:"A comparison between two things for the purpose of explanation or clarification.", example:"The teacher used the analogy of a river to explain the flow of electrical current.", synonyms:["comparison","parallel","metaphor","similarity"], category:"Communication", difficulty:"Easy", tip:"An analogy bridges what you know to what you're learning — a powerful teaching tool." },
+  { id:29, word:"Perpetuate", phonetic:"/pəˈpetʃueɪt/", partOfSpeech:"verb", definition:"To cause something to continue indefinitely; to make perpetual.", example:"Uncritical media coverage can perpetuate harmful stereotypes about social groups.", synonyms:["continue","sustain","maintain","preserve"], category:"Academic", difficulty:"Hard", tip:"Perpetuate and perpetual share 'perpetu' — from Latin for continuous or never-ending." },
+  { id:30, word:"Facilitate", phonetic:"/fəˈsɪlɪteɪt/", partOfSpeech:"verb", definition:"To make an action or process easy or easier; to help bring about.", example:"Online learning platforms facilitate access to quality education for students worldwide.", synonyms:["enable","assist","ease","support"], category:"Academic", difficulty:"Easy", tip:"Facilitate comes from 'facilis' meaning easy — it makes things easy to achieve." },
+];
+
+const categories = ["All","Academic","Communication","Character","Science","Technology"];
+const difficulties = ["All","Easy","Medium","Hard"];
+
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
+const STORAGE_KEY = 'lexilearn_v1';
+function loadState() {
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? {...defaultState(), ...JSON.parse(r)} : defaultState(); }
+  catch { return defaultState(); }
+}
+function defaultState() {
+  return { savedWords:[], knownWords:[], quizAttempts:[], practiceSessionsCount:0, flashcardSessions:[], lastActivity:null };
+}
+function saveState(s) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch {} }
+
+// ============================================================
+// DESIGN TOKENS / SHARED COMPONENTS
+// ============================================================
+const difficultyColors = { Easy:'bg-emerald-100 text-emerald-700', Medium:'bg-amber-100 text-amber-700', Hard:'bg-rose-100 text-rose-700' };
+const categoryColors = { Academic:'bg-indigo-100 text-indigo-700', Communication:'bg-violet-100 text-violet-700', Character:'bg-orange-100 text-orange-700', Science:'bg-cyan-100 text-cyan-700', Technology:'bg-blue-100 text-blue-700' };
+const categoryBarColors = { Academic:'bg-indigo-400', Communication:'bg-violet-400', Character:'bg-orange-400', Science:'bg-cyan-400', Technology:'bg-blue-400' };
+
+function Tag({ label, colorClass }) {
+  return <span className={`tag ${colorClass}`}>{label}</span>;
+}
+
+function Button({ children, onClick, variant='primary', size='md', disabled=false, className='' }) {
+  const base = 'inline-flex items-center gap-2 font-medium rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const variants = {
+    primary: 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm btn-primary',
+    secondary: 'bg-white text-slate-700 border border-surface-200 hover:bg-surface-50 shadow-card',
+    ghost: 'text-slate-600 hover:bg-surface-100 hover:text-slate-800',
+    danger: 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100',
+    success: 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100',
+  };
+  const sizes = { sm:'px-3 py-1.5 text-sm', md:'px-4 py-2 text-sm', lg:'px-5 py-2.5 text-base' };
+  return (
+    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}>
+      {children}
+    </button>
+  );
+}
+
+function Card({ children, className='' }) {
+  return <div className={`bg-white rounded-xl border border-surface-200 shadow-card ${className}`}>{children}</div>;
+}
+
+function PageHeader({ title, subtitle, actions }) {
+  return (
+    <div className="flex items-start justify-between mb-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+        {subtitle && <p className="text-slate-500 text-sm mt-1">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+function EmptyState({ icon, title, description, action }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-14 h-14 bg-surface-100 rounded-full flex items-center justify-center text-2xl mb-4">{icon}</div>
+      <h3 className="font-semibold text-slate-700 text-lg mb-1">{title}</h3>
+      <p className="text-slate-500 text-sm max-w-xs mb-5">{description}</p>
+      {action}
+    </div>
+  );
+}
+
+function ProgressBar({ value, max, colorClass='bg-primary-500' }) {
+  const pct = max > 0 ? Math.round((value/max)*100) : 0;
+  return (
+    <div className="w-full bg-surface-200 rounded-full h-2 overflow-hidden">
+      <div className={`h-2 rounded-full progress-bar ${colorClass}`} style={{width:`${pct}%`}} />
+    </div>
+  );
+}
+
+function Modal({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-modal w-full max-w-md p-6 fade-in" onClick={e=>e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-slate-800 text-lg">{title}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Sidebar nav items
+const navItems = [
+  { page:'dashboard', label:'Dashboard', icon:'🏠' },
+  { page:'library', label:'Vocabulary Library', icon:'📚' },
+  { page:'flashcards', label:'Flashcards', icon:'🃏' },
+  { page:'quiz', label:'Quiz', icon:'✏️' },
+  { page:'practice', label:'Sentence Practice', icon:'✍️' },
+  { page:'progress', label:'Progress & Revision', icon:'📈' },
+  { page:'settings', label:'Settings & Help', icon:'⚙️' },
+];
+
+function Sidebar({ currentPage, setPage, mobileOpen, setMobileOpen }) {
+  return (
+    <>
+      {mobileOpen && <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={()=>setMobileOpen(false)}/>}
+      <aside id="sidebar" className={`${mobileOpen?'flex':'hidden'} md:flex flex-col w-60 bg-white border-r border-surface-200 h-screen sticky top-0 z-40 flex-shrink-0`}>
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-surface-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">L</div>
+            <div>
+              <div className="font-bold text-slate-900 leading-tight">LexiLearn</div>
+              <div className="text-xs text-slate-400">Vocabulary App</div>
+            </div>
+          </div>
+        </div>
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map(item => (
+            <button
+              key={item.page}
+              onClick={() => { setPage(item.page); setMobileOpen(false); }}
+              className={`sidebar-link w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-600 ${currentPage===item.page?'active':''}`}
+            >
+              <span className="text-base">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="px-5 py-4 border-t border-surface-100">
+          <div className="text-xs text-slate-400 leading-relaxed">LexiLearn v1.0<br/>College Project — 2026</div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+function TopBar({ currentPage, setMobileOpen }) {
+  const nav = navItems.find(n=>n.page===currentPage);
+  return (
+    <div className="bg-white border-b border-surface-200 px-5 py-3 flex items-center gap-3 md:hidden">
+      <button onClick={()=>setMobileOpen(o=>!o)} className="text-slate-500 text-xl">☰</button>
+      <span className="font-semibold text-slate-800">{nav?.label}</span>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: DASHBOARD
+// ============================================================
+function DashboardPage({ state, setState, setPage, setDetailWord }) {
+  const today = new Date();
+  const dayIdx = today.getDate() % vocabularyData.length;
+  const dailyWord = vocabularyData[dayIdx];
+  const totalWords = vocabularyData.length;
+  const savedCount = state.savedWords.length;
+  const knownCount = state.knownWords.length;
+  const quizCount = state.quizAttempts.length;
+  const lastQuiz = state.quizAttempts[state.quizAttempts.length-1];
+  const revisionWords = vocabularyData.filter(w=>state.savedWords.includes(w.id)).slice(0,3);
+  const recentActivity = [];
+  if (state.flashcardSessions.length) recentActivity.push({ text:`Flashcard session: ${state.flashcardSessions[state.flashcardSessions.length-1].known} words known`, time: state.flashcardSessions[state.flashcardSessions.length-1].date, icon:'🃏' });
+  if (lastQuiz) recentActivity.push({ text:`Quiz: scored ${lastQuiz.score}/${lastQuiz.total}`, time:lastQuiz.date, icon:'✏️' });
+  if (state.practiceSessionsCount) recentActivity.push({ text:`Completed ${state.practiceSessionsCount} sentence practice session${state.practiceSessionsCount!==1?'s':''}`, time:state.lastActivity, icon:'✍️' });
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const diff = Date.now()-new Date(iso).getTime();
+    const m=Math.floor(diff/60000); if (m<1) return 'just now';
+    if (m<60) return `${m}m ago`;
+    const h=Math.floor(m/60); if (h<24) return `${h}h ago`;
+    return `${Math.floor(h/24)}d ago`;
+  }
+
+  return (
+    <div className="fade-in p-6 max-w-5xl mx-auto">
+      {/* Welcome */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Welcome back! 👋</h1>
+        <p className="text-slate-500 mt-1 text-sm">Continue your vocabulary journey — today is a great day to learn something new.</p>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[
+          { label:'Total Words', value:totalWords, icon:'📚', color:'text-indigo-600' },
+          { label:'Words Known', value:knownCount, icon:'✅', color:'text-emerald-600' },
+          { label:'For Revision', value:savedCount, icon:'📌', color:'text-amber-600' },
+          { label:'Quiz Attempts', value:quizCount, icon:'🏆', color:'text-violet-600' },
+        ].map(s=>(
+          <Card key={s.label} className="p-4 card-hover">
+            <div className="text-xl mb-2">{s.icon}</div>
+            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-slate-500 mt-0.5">{s.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-5">
+        {/* Daily word */}
+        <div className="md:col-span-2">
+          <Card className="p-5 mb-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-primary-600 uppercase tracking-wide">✨ Word of the Day</span>
+              <Tag label={dailyWord.difficulty} colorClass={difficultyColors[dailyWord.difficulty]} />
+            </div>
+            <div className="flex items-baseline gap-3 mb-1">
+              <h2 className="text-2xl font-bold text-slate-900">{dailyWord.word}</h2>
+              <span className="text-slate-400 text-sm font-normal">{dailyWord.phonetic}</span>
+            </div>
+            <p className="text-xs text-slate-400 mb-2 italic">{dailyWord.partOfSpeech}</p>
+            <p className="text-slate-600 text-sm mb-3">{dailyWord.definition}</p>
+            <p className="text-slate-500 text-xs bg-surface-50 rounded-lg p-3 border-l-2 border-primary-300 italic">"{dailyWord.example}"</p>
+            <div className="flex gap-2 mt-4">
+              <Button size="sm" onClick={()=>{ setDetailWord(dailyWord); setPage('detail'); }}>View Details</Button>
+              <Button size="sm" variant="secondary" onClick={()=>{
+                const ns = state.savedWords.includes(dailyWord.id)
+                  ? {...state, savedWords:state.savedWords.filter(i=>i!==dailyWord.id)}
+                  : {...state, savedWords:[...state.savedWords, dailyWord.id], lastActivity:new Date().toISOString()};
+                setState(ns); saveState(ns);
+              }}>{state.savedWords.includes(dailyWord.id)?'📌 In Revision':'📌 Save to Revision'}</Button>
+            </div>
+          </Card>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <Card className="p-4 cursor-pointer card-hover" onClick={()=>setPage('flashcards')}>
+              <div className="text-2xl mb-2">🃏</div>
+              <div className="font-semibold text-slate-800 text-sm">Flashcard Session</div>
+              <div className="text-xs text-slate-500 mt-0.5">Review vocabulary cards</div>
+            </Card>
+            <Card className="p-4 cursor-pointer card-hover" onClick={()=>setPage('quiz')}>
+              <div className="text-2xl mb-2">✏️</div>
+              <div className="font-semibold text-slate-800 text-sm">Take a Quiz</div>
+              <div className="text-xs text-slate-500 mt-0.5">Test your knowledge</div>
+            </Card>
+          </div>
+
+          {/* Recent activity */}
+          <Card className="p-5">
+            <h3 className="font-semibold text-slate-800 text-sm mb-3">Recent Activity</h3>
+            {recentActivity.length === 0 ? (
+              <p className="text-slate-400 text-sm">No activity yet. Start learning to see your progress here.</p>
+            ) : (
+              <div className="space-y-2.5">
+                {recentActivity.map((a,i)=>(
+                  <div key={i} className="flex items-center gap-3 py-2 border-b border-surface-100 last:border-0">
+                    <span className="text-lg">{a.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-slate-700">{a.text}</p>
+                      <p className="text-xs text-slate-400">{timeAgo(a.time)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Sidebar column */}
+        <div>
+          {/* Progress */}
+          <Card className="p-5 mb-5">
+            <h3 className="font-semibold text-slate-800 text-sm mb-4">Learning Progress</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs text-slate-500 mb-1.5"><span>Words Known</span><span>{knownCount}/{totalWords}</span></div>
+                <ProgressBar value={knownCount} max={totalWords} colorClass="bg-emerald-400" />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-slate-500 mb-1.5"><span>In Revision</span><span>{savedCount}/{totalWords}</span></div>
+                <ProgressBar value={savedCount} max={totalWords} colorClass="bg-amber-400" />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-slate-500 mb-1.5"><span>Quiz Attempts</span><span>{quizCount}</span></div>
+                <ProgressBar value={Math.min(quizCount,10)} max={10} colorClass="bg-violet-400" />
+              </div>
+            </div>
+          </Card>
+
+          {/* Revision list preview */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-800 text-sm">Revision List</h3>
+              <button onClick={()=>setPage('progress')} className="text-xs text-primary-600 hover:underline">View all</button>
+            </div>
+            {revisionWords.length === 0 ? (
+              <p className="text-slate-400 text-xs">No words saved yet. Add words from the library.</p>
+            ) : (
+              <div className="space-y-2">
+                {revisionWords.map(w=>(
+                  <button key={w.id} onClick={()=>{ setDetailWord(w); setPage('detail'); }} className="w-full flex items-center justify-between py-2 px-3 rounded-lg bg-surface-50 hover:bg-primary-50 transition-colors text-left">
+                    <span className="text-sm font-medium text-slate-700">{w.word}</span>
+                    <Tag label={w.difficulty} colorClass={difficultyColors[w.difficulty]} />
+                  </button>
+                ))}
+                {state.savedWords.length > 3 && (
+                  <p className="text-xs text-slate-400 text-center pt-1">+{state.savedWords.length-3} more</p>
+                )}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: VOCABULARY LIBRARY
+// ============================================================
+function LibraryPage({ state, setState, setPage, setDetailWord }) {
+  const [search, setSearch] = React.useState('');
+  const [category, setCategory] = React.useState('All');
+  const [difficulty, setDifficulty] = React.useState('All');
+
+  const filtered = vocabularyData.filter(w => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || w.word.toLowerCase().includes(q) || w.definition.toLowerCase().includes(q);
+    const matchCat = category==='All' || w.category===category;
+    const matchDiff = difficulty==='All' || w.difficulty===difficulty;
+    return matchSearch && matchCat && matchDiff;
+  });
+
+  function toggleSave(wordId) {
+    const ns = state.savedWords.includes(wordId)
+      ? {...state, savedWords:state.savedWords.filter(i=>i!==wordId)}
+      : {...state, savedWords:[...state.savedWords, wordId], lastActivity:new Date().toISOString()};
+    setState(ns); saveState(ns);
+  }
+
+  return (
+    <div className="fade-in p-6 max-w-5xl mx-auto">
+      <PageHeader title="Vocabulary Library" subtitle={`${vocabularyData.length} curated words to expand your English vocabulary`} />
+
+      {/* Filters */}
+      <Card className="p-4 mb-5">
+        <div className="flex flex-wrap gap-3">
+          <input
+            value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Search words or definitions…"
+            className="flex-1 min-w-48 px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-surface-50"
+          />
+          <select value={category} onChange={e=>setCategory(e.target.value)} className="px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white">
+            {categories.map(c=><option key={c}>{c}</option>)}
+          </select>
+          <select value={difficulty} onChange={e=>setDifficulty(e.target.value)} className="px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-white">
+            {difficulties.map(d=><option key={d}>{d}</option>)}
+          </select>
+        </div>
+      </Card>
+
+      {/* Results count */}
+      <p className="text-xs text-slate-400 mb-3">{filtered.length} word{filtered.length!==1?'s':''} found</p>
+
+      {/* Word grid */}
+      {filtered.length === 0 ? (
+        <EmptyState icon="🔍" title="No words found" description="Try adjusting your search or filter criteria." />
+      ) : (
+        <div className="grid md:grid-cols-2 gap-3">
+          {filtered.map(word=>(
+            <Card key={word.id} className="p-4 card-hover">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <button onClick={()=>{ setDetailWord(word); setPage('detail'); }} className="font-semibold text-slate-800 hover:text-primary-600 transition-colors text-base">
+                    {word.word}
+                  </button>
+                  <span className="text-xs text-slate-400 ml-2">{word.phonetic}</span>
+                </div>
+                <button
+                  onClick={()=>toggleSave(word.id)}
+                  className={`text-lg transition-transform hover:scale-110 ${state.savedWords.includes(word.id)?'text-amber-500':'text-slate-300'}`}
+                  title={state.savedWords.includes(word.id)?'Remove from revision':'Save for revision'}
+                >📌</button>
+              </div>
+              <div className="flex gap-1.5 mb-2">
+                <Tag label={word.difficulty} colorClass={difficultyColors[word.difficulty]} />
+                <Tag label={word.category} colorClass={categoryColors[word.category]} />
+                {state.knownWords.includes(word.id) && <Tag label="✓ Known" colorClass="bg-emerald-100 text-emerald-700" />}
+              </div>
+              <p className="text-xs text-slate-400 italic mb-1">{word.partOfSpeech}</p>
+              <p className="text-sm text-slate-600 leading-relaxed line-clamp-2">{word.definition}</p>
+              <button onClick={()=>{ setDetailWord(word); setPage('detail'); }} className="text-xs text-primary-600 hover:underline mt-2 block">
+                View details →
+              </button>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: WORD DETAIL
+// ============================================================
+function WordDetailPage({ word, state, setState, setPage }) {
+  if (!word) { setPage('library'); return null; }
+  const isSaved = state.savedWords.includes(word.id);
+  const isKnown = state.knownWords.includes(word.id);
+
+  function toggleSave() {
+    const ns = isSaved
+      ? {...state, savedWords:state.savedWords.filter(i=>i!==word.id)}
+      : {...state, savedWords:[...state.savedWords, word.id], lastActivity:new Date().toISOString()};
+    setState(ns); saveState(ns);
+  }
+
+  return (
+    <div className="fade-in p-6 max-w-2xl mx-auto">
+      <button onClick={()=>setPage('library')} className="text-sm text-slate-500 hover:text-slate-800 mb-5 flex items-center gap-1">← Back to Library</button>
+
+      <Card className="p-7">
+        {/* Word header */}
+        <div className="mb-5">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <Tag label={word.difficulty} colorClass={difficultyColors[word.difficulty]} />
+            <Tag label={word.category} colorClass={categoryColors[word.category]} />
+            {isKnown && <Tag label="✓ Known" colorClass="bg-emerald-100 text-emerald-700" />}
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mt-3">{word.word}</h1>
+          <p className="text-slate-400 text-base mt-1">{word.phonetic}</p>
+          <p className="text-sm text-slate-500 italic mt-1">{word.partOfSpeech}</p>
+        </div>
+
+        <div className="space-y-5">
+          {/* Definition */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Definition</h3>
+            <p className="text-slate-700 leading-relaxed">{word.definition}</p>
+          </div>
+
+          {/* Example */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Example Sentence</h3>
+            <div className="bg-primary-50 border-l-4 border-primary-400 rounded-r-lg p-4">
+              <p className="text-slate-700 italic leading-relaxed">"{word.example}"</p>
+            </div>
+          </div>
+
+          {/* Synonyms */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Synonyms / Related Words</h3>
+            <div className="flex flex-wrap gap-2">
+              {word.synonyms.map(s=><span key={s} className="px-3 py-1 bg-surface-100 text-slate-600 rounded-full text-sm">{s}</span>)}
+            </div>
+          </div>
+
+          {/* Memory tip */}
+          <div>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">💡 Memory Tip</h3>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm text-amber-800 leading-relaxed">{word.tip}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-7 pt-5 border-t border-surface-100">
+          <Button onClick={toggleSave} variant={isSaved?'danger':'secondary'}>
+            {isSaved ? '📌 Remove from Revision' : '📌 Save to Revision'}
+          </Button>
+          <Button variant="ghost" onClick={()=>setPage('practice')}>✍️ Practice Writing</Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: FLASHCARDS
+// ============================================================
+function FlashcardsPage({ state, setState }) {
+  const [deck, setDeck] = React.useState(()=>[...vocabularyData].sort(()=>Math.random()-0.5));
+  const [index, setIndex] = React.useState(0);
+  const [flipped, setFlipped] = React.useState(false);
+  const [sessionKnown, setSessionKnown] = React.useState([]);
+  const [sessionRevision, setSessionRevision] = React.useState([]);
+  const [finished, setFinished] = React.useState(false);
+
+  const word = deck[index];
+  const total = deck.length;
+
+  function shuffle() {
+    setDeck([...vocabularyData].sort(()=>Math.random()-0.5));
+    setIndex(0); setFlipped(false); setSessionKnown([]); setSessionRevision([]); setFinished(false);
+  }
+
+  function restart() {
+    setIndex(0); setFlipped(false); setSessionKnown([]); setSessionRevision([]); setFinished(false);
+  }
+
+  function markKnown() {
+    const newKnown = [...sessionKnown, word.id];
+    setSessionKnown(newKnown);
+    const ns = {
+      ...state,
+      knownWords: state.knownWords.includes(word.id) ? state.knownWords : [...state.knownWords, word.id],
+      savedWords: state.savedWords.filter(i=>i!==word.id),
+      lastActivity: new Date().toISOString()
+    };
+    setState(ns); saveState(ns);
+    advance(newKnown, sessionRevision);
+  }
+
+  function markRevision() {
+    const newRev = [...sessionRevision, word.id];
+    setSessionRevision(newRev);
+    const ns = {
+      ...state,
+      savedWords: state.savedWords.includes(word.id) ? state.savedWords : [...state.savedWords, word.id],
+      lastActivity: new Date().toISOString()
+    };
+    setState(ns); saveState(ns);
+    advance(sessionKnown, newRev);
+  }
+
+  function advance(known, revision) {
+    if (index >= total-1) {
+      const ns2 = {
+        ...state,
+        flashcardSessions: [...state.flashcardSessions, { date:new Date().toISOString(), known:known.length, revision:revision.length }],
+        lastActivity: new Date().toISOString()
+      };
+      setState(ns2); saveState(ns2);
+      setFinished(true);
+    } else {
+      setIndex(i=>i+1); setFlipped(false);
+    }
+  }
+
+  if (finished) {
+    return (
+      <div className="fade-in p-6 max-w-xl mx-auto">
+        <PageHeader title="Session Complete! 🎉" />
+        <Card className="p-8 text-center">
+          <div className="text-5xl mb-4">🏆</div>
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Great work!</h2>
+          <p className="text-slate-500 mb-6">You completed a flashcard session with {total} words.</p>
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-emerald-50 rounded-xl p-4">
+              <div className="text-3xl font-bold text-emerald-600">{sessionKnown.length}</div>
+              <div className="text-sm text-emerald-700">Marked Known</div>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-4">
+              <div className="text-3xl font-bold text-amber-600">{sessionRevision.length}</div>
+              <div className="text-sm text-amber-700">Needs Revision</div>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={shuffle}>New Session</Button>
+            <Button variant="secondary" onClick={restart}>Replay Deck</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade-in p-6 max-w-xl mx-auto">
+      <PageHeader title="Flashcards" subtitle="Flip cards to reveal the definition, then mark your confidence." actions={
+        <Button size="sm" variant="secondary" onClick={shuffle}>🔀 Shuffle</Button>
+      }/>
+
+      {/* Progress */}
+      <div className="mb-4">
+        <div className="flex justify-between text-xs text-slate-500 mb-2">
+          <span>Card {index+1} of {total}</span>
+          <span>{sessionKnown.length} known · {sessionRevision.length} revision</span>
+        </div>
+        <ProgressBar value={index} max={total} />
+      </div>
+
+      {/* Card */}
+      <div className="flip-card h-72 mb-5 cursor-pointer" onClick={()=>setFlipped(f=>!f)}>
+        <div className={`flip-inner relative w-full h-full ${flipped?'flipped':''}`}>
+          {/* Front */}
+          <div className="flip-front absolute inset-0 bg-white border-2 border-surface-200 rounded-2xl flex flex-col items-center justify-center shadow-card p-6 text-center">
+            <div className="flex gap-1.5 mb-4">
+              <Tag label={word.difficulty} colorClass={difficultyColors[word.difficulty]} />
+              <Tag label={word.category} colorClass={categoryColors[word.category]} />
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">{word.word}</h2>
+            <p className="text-slate-400 text-sm">{word.phonetic}</p>
+            <p className="text-xs text-slate-400 italic mt-1">{word.partOfSpeech}</p>
+            <p className="text-slate-400 text-xs mt-6">Tap to reveal definition →</p>
+          </div>
+          {/* Back */}
+          <div className="flip-back absolute inset-0 bg-primary-600 border-2 border-primary-600 rounded-2xl flex flex-col items-center justify-center shadow-card p-6 text-center text-white">
+            <p className="text-xs text-primary-200 uppercase tracking-wider mb-3">Definition</p>
+            <p className="text-base leading-relaxed font-medium mb-4">{word.definition}</p>
+            <div className="w-full bg-primary-700 rounded-lg p-3 text-left">
+              <p className="text-xs text-primary-200 mb-1">Example:</p>
+              <p className="text-sm text-primary-100 italic">"{word.example}"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-between">
+        <Button variant="secondary" size="sm" onClick={()=>{ setIndex(i=>Math.max(0,i-1)); setFlipped(false); }} disabled={index===0}>← Prev</Button>
+        <div className="flex gap-2">
+          <Button variant="success" onClick={markKnown}>✓ Known</Button>
+          <Button variant="danger" onClick={markRevision}>↻ Revision</Button>
+        </div>
+        <Button variant="secondary" size="sm" onClick={()=>{ setIndex(i=>Math.min(total-1,i+1)); setFlipped(false); }} disabled={index===total-1}>Next →</Button>
+      </div>
+
+      <p className="text-center text-xs text-slate-400 mt-4">Use "Known" or "Revision" to track your progress and navigate to the next card.</p>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: QUIZ
+// ============================================================
+function QuizPage({ state, setState, setPage }) {
+  const [questions, setQuestions] = React.useState([]);
+  const [qIndex, setQIndex] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [showFeedback, setShowFeedback] = React.useState(false);
+  const [score, setScore] = React.useState(0);
+  const scoreRef = React.useRef(0);
+  const [finished, setFinished] = React.useState(false);
+
+  function generateQuiz() {
+    const shuffled = [...vocabularyData].sort(()=>Math.random()-0.5);
+    const selected10 = shuffled.slice(0, 10);
+    return selected10.map(word => {
+      const others = vocabularyData.filter(w=>w.id!==word.id).sort(()=>Math.random()-0.5).slice(0,3);
+      const options = [word.definition, ...others.map(o=>o.definition)].sort(()=>Math.random()-0.5);
+      return { word, correctDef:word.definition, options };
+    });
+  }
+
+  function startQuiz() {
+    setQuestions(generateQuiz());
+    setQIndex(0); setSelected(null); setShowFeedback(false);
+    setScore(0); scoreRef.current = 0; setFinished(false);
+  }
+
+  React.useEffect(()=>{ startQuiz(); },[]);
+
+  function handleSelect(option) {
+    if (showFeedback) return;
+    setSelected(option);
+    setShowFeedback(true);
+    if (option===questions[qIndex].correctDef) {
+      scoreRef.current += 1;
+      setScore(scoreRef.current);
+    }
+  }
+
+  function next() {
+    if (qIndex >= questions.length-1) {
+      const finalScore = scoreRef.current;
+      const ns = {
+        ...state,
+        quizAttempts: [...state.quizAttempts, { date:new Date().toISOString(), score:finalScore, total:questions.length, wordIds:questions.map(q=>q.word.id) }],
+        lastActivity: new Date().toISOString()
+      };
+      setState(ns); saveState(ns);
+      setFinished(true);
+    } else {
+      setQIndex(i=>i+1); setSelected(null); setShowFeedback(false);
+    }
+  }
+
+  if (questions.length===0) return <div className="p-6 text-center text-slate-400">Loading quiz…</div>;
+
+  if (finished) {
+    const pct = Math.round((score/questions.length)*100);
+    return (
+      <div className="fade-in p-6 max-w-xl mx-auto">
+        <PageHeader title="Quiz Results" />
+        <Card className="p-8 text-center">
+          <div className="text-5xl mb-4">{pct>=80?'🏆':pct>=60?'👍':'📖'}</div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">{score}/{questions.length}</h2>
+          <p className="text-slate-500 mb-2">{pct}% Correct</p>
+          <p className="text-sm text-slate-600 mb-6">{pct>=80?'Excellent work! You have a strong vocabulary.':pct>=60?'Good effort! Keep reviewing the words you missed.':'Keep practising — every attempt helps you improve.'}</p>
+          <div className="w-full bg-surface-100 rounded-full h-3 mb-6 overflow-hidden">
+            <div className={`h-3 rounded-full progress-bar ${pct>=80?'bg-emerald-400':pct>=60?'bg-amber-400':'bg-rose-400'}`} style={{width:`${pct}%`}} />
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={startQuiz}>Retry Quiz</Button>
+            <Button variant="secondary" onClick={()=>setPage('library')}>View Library</Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const q = questions[qIndex];
+  const isCorrect = selected===q.correctDef;
+
+  return (
+    <div className="fade-in p-6 max-w-xl mx-auto">
+      <PageHeader title="Vocabulary Quiz" subtitle="Choose the correct definition for each word." />
+      <div className="flex justify-between text-xs text-slate-500 mb-3">
+        <span>Question {qIndex+1} of {questions.length}</span>
+        <span>Score: {score}</span>
+      </div>
+      <ProgressBar value={qIndex+1} max={questions.length} />
+
+      <Card className="p-6 my-5">
+        <p className="text-xs text-primary-600 font-semibold uppercase tracking-wider mb-3">What does this word mean?</p>
+        <div className="flex items-baseline gap-3 mb-1">
+          <h2 className="text-2xl font-bold text-slate-900">{q.word.word}</h2>
+          <span className="text-slate-400 text-sm">{q.word.phonetic}</span>
+        </div>
+        <p className="text-xs text-slate-400 italic mb-5">{q.word.partOfSpeech}</p>
+
+        <div className="space-y-2.5">
+          {q.options.map((option, i) => {
+            let btnClass = 'w-full text-left px-4 py-3 rounded-xl border text-sm transition-all ';
+            if (!showFeedback) {
+              btnClass += 'border-surface-200 bg-white hover:border-primary-300 hover:bg-primary-50 cursor-pointer';
+            } else if (option === q.correctDef) {
+              btnClass += 'border-emerald-400 bg-emerald-50 text-emerald-800 font-medium';
+            } else if (option === selected) {
+              btnClass += 'border-rose-400 bg-rose-50 text-rose-800';
+            } else {
+              btnClass += 'border-surface-200 bg-surface-50 text-slate-400 cursor-not-allowed';
+            }
+            return (
+              <button key={i} className={btnClass} onClick={()=>handleSelect(option)}>
+                <span className="text-slate-400 mr-2">{String.fromCharCode(65+i)}.</span>
+                {option}
+                {showFeedback && option===q.correctDef && <span className="ml-2">✓</span>}
+                {showFeedback && option===selected && option!==q.correctDef && <span className="ml-2">✗</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {showFeedback && (
+          <div className={`mt-4 p-4 rounded-xl ${isCorrect?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'}`}>
+            <p className={`text-sm font-medium mb-1 ${isCorrect?'text-emerald-700':'text-rose-700'}`}>
+              {isCorrect?'✓ Correct!':'✗ Incorrect'}</p>
+            {!isCorrect && <p className="text-xs text-slate-600 mb-1">The correct answer is: <strong>{q.correctDef}</strong></p>}
+            <p className="text-xs text-slate-500 italic">"{q.word.example}"</p>
+          </div>
+        )}
+      </Card>
+
+      {showFeedback && (
+        <div className="flex justify-end">
+          <Button onClick={next}>{qIndex<questions.length-1?'Next Question →':'See Results 🏆'}</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: SENTENCE PRACTICE
+// ============================================================
+function PracticePage({ state, setState, selectedWord }) {
+  const initWord = selectedWord || vocabularyData[Math.floor(Math.random()*vocabularyData.length)];
+  const [word, setWord] = React.useState(initWord);
+  const [input, setInput] = React.useState('');
+  const [feedback, setFeedback] = React.useState(null);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  function newWord() {
+    const others = vocabularyData.filter(w=>w.id!==word.id);
+    setWord(others[Math.floor(Math.random()*others.length)]);
+    setInput(''); setFeedback(null); setSubmitted(false);
+  }
+
+  function validate(sentence) {
+    const s = sentence.trim();
+    const wLower = word.word.toLowerCase();
+    const issues = [];
+    if (!s) return { type:'error', msg:'Please write a sentence before submitting.' };
+    if (s.length < 15) issues.push('Your sentence is quite short — try to add more context.');
+    if (!s.toLowerCase().includes(wLower)) issues.push(`The word "${word.word}" doesn't appear in your sentence.`);
+    if (!s.match(/[.!?]$/)) issues.push('Consider ending your sentence with punctuation (. ! ?)');
+    if (!/^[A-Z]/.test(s)) issues.push('Sentences typically start with a capital letter.');
+    if (issues.length===0) return { type:'success', msg:'Great sentence! It includes the target word, starts correctly, and ends with punctuation.' };
+    if (!s.toLowerCase().includes(wLower)) return { type:'error', msg:issues.join(' ') };
+    return { type:'warn', msg:issues.join(' ') };
+  }
+
+  function handleSubmit() {
+    const result = validate(input);
+    setFeedback(result);
+    setSubmitted(true);
+    if (result.type !== 'error') {
+      const ns = { ...state, practiceSessionsCount:(state.practiceSessionsCount||0)+1, lastActivity:new Date().toISOString() };
+      setState(ns); saveState(ns);
+    }
+  }
+
+  const feedbackStyles = {
+    success:'bg-emerald-50 border border-emerald-300 text-emerald-800',
+    warn:'bg-amber-50 border border-amber-300 text-amber-800',
+    error:'bg-rose-50 border border-rose-200 text-rose-700'
+  };
+
+  return (
+    <div className="fade-in p-6 max-w-2xl mx-auto">
+      <PageHeader title="Sentence Practice" subtitle="Write your own sentence using the target word. Honest rule-based feedback is provided below." />
+
+      <Card className="p-6 mb-4">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex gap-1.5 mb-2">
+              <Tag label={word.difficulty} colorClass={difficultyColors[word.difficulty]} />
+              <Tag label={word.category} colorClass={categoryColors[word.category]} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">{word.word}</h2>
+            <p className="text-slate-400 text-sm">{word.phonetic} · <span className="italic">{word.partOfSpeech}</span></p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={newWord}>Try Another Word</Button>
+        </div>
+
+        <div className="bg-surface-50 rounded-lg p-4 mb-4">
+          <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-1">Meaning</p>
+          <p className="text-sm text-slate-700">{word.definition}</p>
+        </div>
+
+        {/* Tips */}
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+          <p className="text-xs font-semibold text-amber-700 mb-1">💡 Writing Tips</p>
+          <ul className="text-xs text-amber-700 space-y-0.5 list-disc list-inside">
+            <li>Include the word "{word.word}" in your sentence.</li>
+            <li>Use the word in a realistic, meaningful context.</li>
+            <li>Start with a capital letter and end with punctuation.</li>
+            <li>Aim for 10–20 words for a solid example sentence.</li>
+          </ul>
+        </div>
+
+        <textarea
+          value={input} onChange={e=>{setInput(e.target.value); if(submitted){setFeedback(null);setSubmitted(false);}}}
+          placeholder={`Write a sentence using "${word.word}"…`}
+          rows={4}
+          className="w-full px-4 py-3 text-sm border border-surface-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-300 resize-none"
+        />
+
+        <div className="flex justify-between items-center mt-3">
+          <span className="text-xs text-slate-400">{input.length} characters</span>
+          <Button onClick={handleSubmit}>Check My Sentence</Button>
+        </div>
+
+        {/* Feedback */}
+        {feedback && (
+          <div className={`mt-4 p-4 rounded-xl ${feedbackStyles[feedback.type]}`}>
+            <p className="text-sm font-medium mb-1">
+              {feedback.type==='success'?'✅ Well done!':feedback.type==='warn'?'⚠️ Good attempt — a few suggestions:':'❌ Please check:'}
+            </p>
+            <p className="text-sm">{feedback.msg}</p>
+            <p className="text-xs mt-2 opacity-70">ℹ️ This feedback is rule-based, not AI-generated.</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Example sentence */}
+      <Card className="p-5">
+        <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Sample Sentence</p>
+        <p className="text-slate-600 italic text-sm leading-relaxed">"{word.example}"</p>
+        <p className="text-xs text-slate-400 mt-2">This is a curated example — not AI-generated.</p>
+        <p className="text-xs text-slate-400 mt-1">{word.tip}</p>
+      </Card>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: PROGRESS & REVISION
+// ============================================================
+function ProgressPage({ state, setState, setPage, setDetailWord }) {
+  const [removeConfirm, setRemoveConfirm] = React.useState(null);
+  const savedWords = vocabularyData.filter(w=>state.savedWords.includes(w.id));
+  const knownWords = vocabularyData.filter(w=>state.knownWords.includes(w.id));
+  const quizAttempts = state.quizAttempts || [];
+  const avgScore = quizAttempts.length ? Math.round(quizAttempts.reduce((a,q)=>a+(q.score/q.total)*100,0)/quizAttempts.length) : 0;
+  const lastSession = state.flashcardSessions?.[state.flashcardSessions.length-1];
+
+  function removeFromRevision(wordId) {
+    const ns = {...state, savedWords:state.savedWords.filter(i=>i!==wordId), lastActivity:new Date().toISOString()};
+    setState(ns); saveState(ns); setRemoveConfirm(null);
+  }
+
+  const catBreakdown = {};
+  knownWords.forEach(w=>{catBreakdown[w.category]=(catBreakdown[w.category]||0)+1;});
+
+  return (
+    <div className="fade-in p-6 max-w-5xl mx-auto">
+      <PageHeader title="Progress & Revision" subtitle="Your actual learning data — no fabricated statistics." />
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {[
+          { label:'Words Known', value:knownWords.length, icon:'✅', color:'text-emerald-600', bg:'bg-emerald-50' },
+          { label:'In Revision', value:savedWords.length, icon:'📌', color:'text-amber-600', bg:'bg-amber-50' },
+          { label:'Quiz Attempts', value:quizAttempts.length, icon:'✏️', color:'text-violet-600', bg:'bg-violet-50' },
+          { label:'Practice Sessions', value:state.practiceSessionsCount||0, icon:'✍️', color:'text-blue-600', bg:'bg-blue-50' },
+        ].map(s=>(
+          <Card key={s.label} className={`p-4 ${s.bg}`}>
+            <div className="text-xl mb-1">{s.icon}</div>
+            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-xs text-slate-600 mt-0.5">{s.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-5 mb-5">
+        {/* Quiz history */}
+        <Card className="p-5">
+          <h3 className="font-semibold text-slate-800 mb-4 text-sm">Quiz History</h3>
+          {quizAttempts.length===0 ? (
+            <EmptyState icon="✏️" title="No quizzes taken" description="Complete a quiz to see your results here." action={<Button size="sm" onClick={()=>setPage('quiz')}>Take a Quiz</Button>}/>
+          ) : (
+            <>
+              <div className="mb-3">
+                <div className="flex justify-between text-xs text-slate-500 mb-1.5"><span>Average Score</span><span>{avgScore}%</span></div>
+                <ProgressBar value={avgScore} max={100} colorClass={avgScore>=80?'bg-emerald-400':avgScore>=60?'bg-amber-400':'bg-rose-400'} />
+              </div>
+              <div className="space-y-2 mt-4 max-h-48 overflow-y-auto">
+                {[...quizAttempts].reverse().map((a,i)=>(
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-surface-100 last:border-0">
+                    <div>
+                      <span className="text-sm font-medium text-slate-700">{a.score}/{a.total} correct</span>
+                      <span className="text-xs text-slate-400 ml-2">{Math.round((a.score/a.total)*100)}%</span>
+                    </div>
+                    <span className="text-xs text-slate-400">{new Date(a.date).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Card>
+
+        {/* Category breakdown */}
+        <Card className="p-5">
+          <h3 className="font-semibold text-slate-800 mb-4 text-sm">Words Known by Category</h3>
+          {knownWords.length===0 ? (
+            <EmptyState icon="📚" title="No words known yet" description="Mark words as known in flashcard sessions." action={<Button size="sm" onClick={()=>setPage('flashcards')}>Start Flashcards</Button>}/>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(catBreakdown).map(([cat, count])=>{
+                const total = vocabularyData.filter(w=>w.category===cat).length;
+                return (
+                  <div key={cat}>
+                    <div className="flex justify-between text-xs text-slate-600 mb-1">
+                      <span>{cat}</span><span>{count}/{total}</span>
+                    </div>
+                    <ProgressBar value={count} max={total} colorClass={categoryBarColors[cat] || 'bg-primary-400'} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Revision list */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-slate-800">Revision List ({savedWords.length})</h3>
+          {savedWords.length>0 && <Button size="sm" onClick={()=>setPage('flashcards')}>Practice These</Button>}
+        </div>
+        {savedWords.length===0 ? (
+          <EmptyState icon="📌" title="Revision list is empty" description="Save words from the library or flashcard sessions to track words that need more practice." action={<Button size="sm" variant="secondary" onClick={()=>setPage('library')}>Browse Library</Button>}/>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-3">
+            {savedWords.map(word=>(
+              <div key={word.id} className="flex items-center justify-between p-3 bg-surface-50 rounded-xl border border-surface-200">
+                <button className="flex-1 text-left" onClick={()=>{ setDetailWord(word); setPage('detail'); }}>
+                  <div className="font-medium text-slate-700 text-sm">{word.word}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">{word.partOfSpeech} · {word.category}</div>
+                </button>
+                <div className="flex items-center gap-2">
+                  <Tag label={word.difficulty} colorClass={difficultyColors[word.difficulty]} />
+                  <button onClick={()=>setRemoveConfirm(word.id)} className="text-slate-300 hover:text-rose-500 transition-colors text-lg" title="Remove from revision">✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Known words */}
+      {knownWords.length>0 && (
+        <Card className="p-5 mt-5">
+          <h3 className="font-semibold text-slate-800 mb-4">Known Words ({knownWords.length})</h3>
+          <div className="flex flex-wrap gap-2">
+            {knownWords.map(w=>(
+              <span key={w.id} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-sm font-medium">{w.word}</span>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Confirm removal modal */}
+      <Modal open={!!removeConfirm} onClose={()=>setRemoveConfirm(null)} title="Remove from Revision">
+        <p className="text-slate-600 text-sm mb-5">Remove "<strong>{vocabularyData.find(w=>w.id===removeConfirm)?.word}</strong>" from your revision list?</p>
+        <div className="flex gap-3">
+          <Button variant="danger" onClick={()=>removeFromRevision(removeConfirm)}>Remove</Button>
+          <Button variant="secondary" onClick={()=>setRemoveConfirm(null)}>Cancel</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// PAGE: SETTINGS & HELP
+// ============================================================
+function SettingsPage({ state, setState, setPage }) {
+  const [showResetConfirm, setShowResetConfirm] = React.useState(false);
+  const [resetDone, setResetDone] = React.useState(false);
+
+  function confirmReset() {
+    localStorage.removeItem('lexilearn_v1');
+    const ns = { savedWords:[], knownWords:[], quizAttempts:[], practiceSessionsCount:0, flashcardSessions:[], lastActivity:null };
+    setState(ns);
+    setShowResetConfirm(false);
+    setResetDone(true);
+    setTimeout(()=>setResetDone(false), 3000);
+  }
+
+  const howItWorks = [
+    { icon:'🃏', title:'Flashcards', desc:'Cards show a word on the front. Tap to flip and reveal the definition and an example. Mark as "Known" or "Needs Revision". Words you mark are saved and reflected across the app.' },
+    { icon:'✏️', title:'Quiz', desc:'10 multiple-choice questions drawn from the vocabulary library. Select the correct definition for each word. Your score is saved to your progress history.' },
+    { icon:'✍️', title:'Sentence Practice', desc:'Write a sentence using the target vocabulary word. Rule-based feedback checks for the word\'s presence, punctuation, and capitalisation. No AI model is used — feedback is honest and local.' },
+    { icon:'📌', title:'Revision List', desc:'Save words that are difficult. The revision list appears on your Dashboard and Progress page. Words marked as Known are removed automatically.' },
+    { icon:'📈', title:'Progress Tracking', desc:'Your quiz scores, flashcard sessions, and practice counts are stored in your browser\'s localStorage. No account or internet connection is required.' },
+  ];
+
+  return (
+    <div className="fade-in p-6 max-w-2xl mx-auto">
+      <PageHeader title="Settings & Help" />
+
+      {resetDone && (
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">✓ Learning progress has been reset successfully.</div>
+      )}
+
+      {/* How it works */}
+      <Card className="p-6 mb-5">
+        <h2 className="font-semibold text-slate-800 mb-4">How LexiLearn Works</h2>
+        <div className="space-y-5">
+          {howItWorks.map(item=>(
+            <div key={item.title} className="flex gap-4">
+              <div className="text-2xl flex-shrink-0">{item.icon}</div>
+              <div>
+                <h3 className="font-medium text-slate-700 mb-1">{item.title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* AI / Honesty notice */}
+      <Card className="p-6 mb-5 border-amber-200 bg-amber-50">
+        <h2 className="font-semibold text-amber-800 mb-3">ℹ️ About AI-Assisted Features</h2>
+        <p className="text-sm text-amber-700 leading-relaxed mb-2">
+          This version of LexiLearn uses <strong>curated sample data and rule-based logic</strong>, not a live AI model. All example sentences, definitions, and vocabulary tips are hand-crafted.
+        </p>
+        <p className="text-sm text-amber-700 leading-relaxed mb-2">
+          Sentence feedback checks for basic writing rules (word presence, capitalisation, punctuation). It does not evaluate meaning or grammar quality.
+        </p>
+        <p className="text-sm text-amber-700 leading-relaxed">
+          The codebase is structured for a real AI API (e.g. Gemini, OpenAI) to be added in a future version without rewriting the application.
+        </p>
+      </Card>
+
+      {/* Data & Reset */}
+      <Card className="p-6 mb-5">
+        <h2 className="font-semibold text-slate-800 mb-2">Data & Privacy</h2>
+        <p className="text-sm text-slate-500 leading-relaxed mb-4">All your progress is stored locally in your browser using localStorage. No data is sent to any server. Clearing your browser data or resetting below will erase all progress.</p>
+
+        <div className="border border-surface-200 rounded-xl p-4 bg-surface-50">
+          <h3 className="font-medium text-slate-700 mb-1">Current Progress</h3>
+          <div className="text-sm text-slate-500 space-y-0.5">
+            <p>Words known: <strong>{state.knownWords.length}</strong></p>
+            <p>Words in revision: <strong>{state.savedWords.length}</strong></p>
+            <p>Quiz attempts: <strong>{state.quizAttempts.length}</strong></p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Button variant="danger" onClick={()=>setShowResetConfirm(true)}>Reset All Progress</Button>
+          <p className="text-xs text-slate-400 mt-2">This cannot be undone. All saved words, quiz scores, and progress will be deleted.</p>
+        </div>
+      </Card>
+
+      {/* Navigation shortcuts */}
+      <Card className="p-6">
+        <h2 className="font-semibold text-slate-800 mb-4">Quick Navigation</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {navItems.filter(n=>n.page!=='settings').map(item=>(
+            <Button key={item.page} variant="secondary" onClick={()=>setPage(item.page)} className="justify-start">
+              <span>{item.icon}</span>{item.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Reset confirmation modal */}
+      <Modal open={showResetConfirm} onClose={()=>setShowResetConfirm(false)} title="Reset All Progress?">
+        <p className="text-slate-600 text-sm mb-2">This will permanently delete:</p>
+        <ul className="text-sm text-slate-600 list-disc list-inside mb-5 space-y-1">
+          <li>All words marked as known or saved</li>
+          <li>All quiz attempt history and scores</li>
+          <li>Flashcard session records</li>
+          <li>Sentence practice session count</li>
+        </ul>
+        <p className="text-sm text-red-600 font-medium mb-5">This action cannot be undone.</p>
+        <div className="flex gap-3">
+          <Button variant="danger" onClick={confirmReset}>Yes, Reset Everything</Button>
+          <Button variant="secondary" onClick={()=>setShowResetConfirm(false)}>Cancel</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ============================================================
+// ROOT APPLICATION
+// ============================================================
+function App() {
+  const [state, setState] = React.useState(loadState);
+  const [page, setPage] = React.useState('dashboard');
+  const [detailWord, setDetailWord] = React.useState(null);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [practiceWord, setPracticeWord] = React.useState(null);
+
+  function navigate(pg) { setPage(pg); setMobileOpen(false); window.scrollTo(0,0); }
+
+  function renderPage() {
+    switch(page) {
+      case 'dashboard': return <DashboardPage state={state} setState={setState} setPage={navigate} setDetailWord={setDetailWord} />;
+      case 'library': return <LibraryPage state={state} setState={setState} setPage={navigate} setDetailWord={setDetailWord} />;
+      case 'detail': return <WordDetailPage word={detailWord} state={state} setState={setState} setPage={navigate} />;
+      case 'flashcards': return <FlashcardsPage state={state} setState={setState} />;
+      case 'quiz': return <QuizPage state={state} setState={setState} setPage={navigate} />;
+      case 'practice': return <PracticePage state={state} setState={setState} selectedWord={practiceWord} />;
+      case 'progress': return <ProgressPage state={state} setState={setState} setPage={navigate} setDetailWord={setDetailWord} />;
+      case 'settings': return <SettingsPage state={state} setState={setState} setPage={navigate} />;
+      default: return <DashboardPage state={state} setState={setState} setPage={navigate} setDetailWord={setDetailWord} />;
+    }
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-surface-50">
+      <Sidebar currentPage={page} setPage={navigate} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <TopBar currentPage={page} setMobileOpen={setMobileOpen} />
+        <main className="flex-1 overflow-y-auto">
+          {renderPage()}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
